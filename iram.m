@@ -30,7 +30,7 @@ k = n_eig;
 p = max(6,n_eig);
 m = k+p;
 
-% compute k-step Arnoldi decomposition
+% compute (k+1)-step Arnoldi decomposition
 [Vk,Hk,fk] = arnoldi(AFUN,k,v1);
 if norm(fk) <= TOL_BRKDWN
     disp('TERMINATING IRAM BECAUSE OF LUCKY BREAKDOWN.')
@@ -41,8 +41,9 @@ if norm(fk) <= TOL_BRKDWN
 end
 for iter = 1:min(dim,1000)
 
-    % expand to 2*n_eig-step decomposition
-    [Vm,Hm,fm] = arnoldi(AFUN,p,Vk,Hk,fk);
+    % expand to (k+p+1)-step decomposition
+    [Vm,Hm,fm] = arnoldi(AFUN,p+1,Vk,Hk,fk);
+    
     if norm(fm) <= TOL_BRKDWN
         fprintf('Termination after %d iterations because of lucky breakdown.\n',iter)
         [y,theta] = eig(Hm);
@@ -50,6 +51,22 @@ for iter = 1:min(dim,1000)
         x = Vm*y;
         return
     end
+    
+    % apply one zero shift
+    et = zeros(m+1,1);
+    et(m+1) = 1;
+    [Q,R] = qr(Hm);
+    Hm = R*Q;
+    Vm = Vm*Q;
+    et = Q'*et;
+    
+    beta = Hm(m+1,m);
+    sigma = et(m);
+    fm = beta*Vm(:,m+1) + sigma*fm;
+    Hm = Hm(1:m,1:m);
+    Vm = Vm(:,1:m);
+    
+    
     % check for deflation
     subdiag = diag(Hm,-1);
     [subdiag_minval, subdiag_min] = min(abs(subdiag));
